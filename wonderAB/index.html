@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>神武RPG</title>
+    <style>
+        /* style2.cssの内容をここに挿入 */
+        body {
+            font-family: 'MS Gothic', sans-serif;
+            display: flex;
+            justify-content: center; /* 全体を中央寄せ */
+            align-items: flex-start; /* 上寄せ */
+            padding-top: 20px;
+            background-color: #f0f0f0; /* 背景色 */
+        }
+
+        #game-container {
+            position: relative; /* 子要素の絶対位置指定の基準 */
+            width: 800px; /* ゲーム全体の幅 */
+            height: 600px; /* ゲーム全体の高さ */
+            border: 2px solid #333;
+            box-shadow: 5px 5px 10px rgba(0,0,0,0.3);
+            background-color: #fff; /* コンテナ背景 */
+        }
+
+        #map-area {
+            position: relative; /* 内部要素の絶対位置指定の基準 */
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* はみ出した要素を隠す */
+        }
+
+        #map-image {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* 画像をエリアに合わせて調整 */
+        }
+
+        #player-icon {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            transform: translate(-50%, -50%);
+            transition: left 0.5s ease, top 0.5s ease;
+            z-index: 10; /* マーカーより手前 */
+        }
+
+        .city-marker {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background-color: rgba(0, 0, 255, 0.7); /* 半透明青 */
+            color: white;
+            border: 1px solid white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 16px;
+            font-size: 10px;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        }
+        .city-marker.current {
+            background-color: rgba(255, 0, 0, 0.8); /* 半透明赤 */
+            border: 1px solid yellow;
+        }
+        .city-marker.conquered {
+            background-color: rgba(128, 128, 128, 0.7); /* 半透明グレー */
+        }
+
+        /* --- ウィンドウのスタイル変更 --- */
+
+        /* プレイヤー状態ウィンドウ (左上) */
+        #status-area {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 180px; /* 幅を小さく */
+            padding: 8px;
+            background-color: rgba(0, 0, 0, 0.6); /* 半透明黒 */
+            color: white;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 12px; /* フォント小さく */
+            z-index: 20;
+        }
+        #status-area p {
+            margin: 2px 0;
+            line-height: 1.3;
+        }
+        #status-area ul {
+            list-style: none;
+            padding: 0;
+            margin: 4px 0 0 0;
+            font-size: 11px;
+            max-height: 50px; /* 宝リストの高さを制限 */
+            overflow-y: auto; /* スクロール可能に */
+        }
+        #status-area li {
+            margin-bottom: 2px;
+            padding: 1px 3px;
+        }
+        #status-area button { /* 宝使用ボタン */
+            font-size: 9px;
+            padding: 0 3px;
+            margin-left: 3px;
+            cursor: pointer;
+        }
+
+
+        /* コントローラーウィンドウ (右下) */
+        #controller-area {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 250px; /* 幅調整 */
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.6); /* 半透明黒 */
+            color: white;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            z-index: 20;
+        }
+        #main-message-area {
+            margin-bottom: 8px;
+            min-height: 3em; /* メッセージエリア高さ確保 */
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        #main-message-area p {
+            margin: 0;
+        }
+        #action-buttons {
+            text-align: right; /* ボタンを右寄せ */
+        }
+        #action-buttons button {
+            padding: 5px 15px;
+            font-size: 14px;
+            margin-left: 5px; /* ボタン間のマージン */
+            margin-right: 5px; /* ボタン間のマージン */
+            cursor: pointer;
+        }
+
+        /* 天の声ウィンドウ (マップ下段) */
+        #gameover-window {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%); /* 中央寄せ */
+            width: 70%; /* 幅調整 */
+            padding: 15px;
+            background-color: #000; /* 黒背景 */
+            color: white;
+            border: 3px solid white; /* 白い太枠線 */
+            border-radius: 5px;
+            z-index: 30; /* 最前面に */
+            display: flex;
+            align-items: center;
+        }
+        #gameover-icon {
+            width: 50px; /* アイコンサイズ */
+            height: auto;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        #gameover-window p {
+            margin: 0;
+            flex-grow: 1;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+        #gameover-window button { /* はいボタン */
+            padding: 8px 20px;
+            font-size: 14px;
+            margin-left: 15px;
+            background-color: #eee;
+            color: #333;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+
+        /* 戦闘/イベント用ポップアップ */
+        .popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        #popup-content {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #555;
+            min-width: 450px;
+            max-width: 90%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            text-align: center;
+        }
+
+        /* --- 戦闘画面スタイル調整 --- */
+        #battle-info {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 15px;
+            align-items: flex-start;
+        }
+        #battle-player-status, #battle-enemy-status {
+            border: 1px solid #ccc;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            width: 45%;
+            box-sizing: border-box;
+            text-align: left;
+        }
+        #battle-player-status h3, #battle-enemy-status h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        #battle-player-status p, #battle-enemy-status p {
+            margin: 4px 0;
+            font-size: 13px;
+        }
+        .player-battle-image {
+            display: block;
+            margin: 5px auto 5px auto;
+            width: 50px;
+            height: 50px;
+        }
+
+        .enemy-image {
+            display: block;
+            margin: 5px auto 5px auto;
+            max-width: 80px;
+            max-height: 80px;
+            height: auto;
+        }
+        /* 敵へのエフェクト表示用（任意） */
+        .effect-image-enemy {
+            position: absolute;
+            top: 50%;
+            left: 55%; /* 敵エリアのあたり */
+            transform: translate(-50%, -150%); /* 画像の上に来るように調整 */
+            width: 40px;
+            height: auto;
+            z-index: 1010;
+            animation: shake 0.5s infinite;
+        }
+        /* プレイヤーへのエフェクト表示用（任意） */
+        .effect-image-player {
+             position: absolute;
+             top: 50%;
+             left: 45%; /* プレイヤーエリアのあたり */
+             transform: translate(-50%, -150%);
+             width: 40px;
+             height: auto;
+             z-index: 1010;
+             animation: shake 0.5s infinite;
+         }
+
+         @keyframes shake {
+             0% { transform: translate(-50%, -150%) rotate(0deg); }
+             25% { transform: translate(-50%, -150%) rotate(-5deg); }
+             50% { transform: translate(-50%, -150%) rotate(0deg); }
+             75% { transform: translate(-50%, -150%) rotate(5deg); }
+             100% { transform: translate(-50%, -150%) rotate(0deg); }
+         }
+
+
+        #battle-log {
+            height: 100px;
+            overflow-y: scroll;
+            border: 1px solid #ccc;
+            background-color: rgba(240, 240, 240, 0.8);
+            margin-bottom: 10px;
+            padding: 8px;
+            text-align: left;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        #battle-log p {
+            margin: 0 0 3px 0;
+        }
+
+        #battle-actions button {
+            margin: 5px;
+            padding: 8px 15px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        #battle-inventory {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px dashed #ccc;
+            background-color: rgba(255, 255, 255, 0.7);
+        }
+        #battle-inventory h4 {
+            margin: 0 0 10px 0;
+        }
+        #battle-inventory button {
+            margin: 3px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="map-area">
+            <img src="旧九州.jpg" alt="ゲームマップ" id="map-image">
+            <img src="player.png" alt="プレイヤー" id="player-icon">
+
+            <div id="status-area">
+                <p>LV: <span id="player-lv">1</span></p>
+                <p>HP: <span id="player-hp">50</span>/<span id="player-maxhp">50</span></p>
+                <p>STR: <span id="player-str">3</span></p>
+                <p>DEF: <span id="player-def">3</span></p>
+                <p>特殊: <span id="player-sp-name">なし</span></p> <p>金: <span id="player-gold">0</span></p>
+                <p>EXP: <span id="player-exp">0</span> / <span id="player-next-exp">10</span></p>
+                <p>宝箱: <span id="player-treasure-count">0</span>/5</p> <ul id="player-treasure-list"></ul>
+            </div>
+
+            <div id="controller-area">
+                <div id="main-message-area">
+                    <p id="message-text">冒険を始めよう！</p>
+                </div>
+                 <div id="action-buttons">
+                    <button id="prev-action-button" style="display: none;">前の都市へ</button>
+<button id="next-action-button" style="display: none;">次の都市へ</button>
+                </div>
+            </div>
+
+            <div id="gameover-window" style="display: none;">
+                 <img src="天の声.png" alt="天の声" id="gameover-icon">
+                 <p id="gameover-message"></p>
+                 <button id="restart-button">はい</button>
+            </div>
+
+        </div>
+        <div id="popup-window" class="popup" style="display: none;">
+            <div id="popup-content">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        // --- グローバル変数と定数 ---
+        const GAME_CONTAINER = document.getElementById('game-container');
+        const MAP_AREA = document.getElementById('map-area');
+        const MAP_IMAGE = document.getElementById('map-image');
+        const PLAYER_ICON = document.getElementById('player-icon');
+        // Status Area references
+        const STATUS_AREA = document.getElementById('status-area');
+        const STATUS_LV = document.getElementById('player-lv');
+        const STATUS_HP = document.getElementById('player-hp');
+        const STATUS_MAXHP = document.getElementById('player-maxhp');
+        const STATUS_STR = document.getElementById('player-str');
+        const STATUS_DEF = document.getElementById('player-def');
+        const STATUS_SP_NAME = document.getElementById('player-sp-name');
+        const STATUS_GOLD = document.getElementById('player-gold');
+        const STATUS_TREASURE_COUNT = document.getElementById('player-treasure-count');
+        const STATUS_TREASURE_LIST = document.getElementById('player-treasure-list');
+        const STATUS_EXP = document.getElementById('player-exp');
+        const STATUS_NEXT_EXP = document.getElementById('player-next-exp');
+        // Controller Area references
+        const CONTROLLER_AREA = document.getElementById('controller-area');
+        const MESSAGE_TEXT = document.getElementById('message-text');
+        const NEXT_ACTION_BUTTON = document.getElementById('next-action-button');
+        const PREV_ACTION_BUTTON = document.getElementById('prev-action-button');
+        // Popup references
+        const POPUP_WINDOW = document.getElementById('popup-window');
+        const POPUP_CONTENT = document.getElementById('popup-content');
+        // Game Over Window references
+        const GAMEOVER_WINDOW = document.getElementById('gameover-window');
+        const GAMEOVER_MESSAGE = document.getElementById('gameover-message');
+
+        // --- ゲームパラメータ定数 ---
+        const MAX_HP = 3000;
+        const MAX_STR = 200;
+        const MAX_DEF = 200;
+        // const MAX_SP = 100; // SPのMaxは特に指定されていない
+        const MAX_GOLD = 100000;
+        const MAX_TREASURE = 5;
+        const MIN_LV = 1;
+        const MAX_LV = 100;
+        const ANCIENT_TREASURE_GOLD_REQ = 3333; // ★ 修正: 古の宝ドロップに必要な金
+        const ANCIENT_TREASURE_DROP_CHANCE = 0.3; // 30%
+        const PLAYER_POWER_UP_CHANCE = 0.2; // 漲る力 発生確率 20%
+        const ENEMY_POWER_UP_CHANCE = 0.1; // 豪族の力 発生確率 20%
+        const BASE_EXP_FACTOR = 10;
+        const GOD_STRIKE_CHANCE = 0.05; // 神の一撃発生確率 (5%) - テキストにはないが残しておく
+        const GOD_STRIKE_MULTIPLIER = 3; // 神の一撃ダメージ倍率 - テキストにはないが残しておく
+        const SMALL_BOSS_ENCOUNTER_CHANCE = 1 / 6; // 道中小ボス遭遇率
+        const CITY_HEAL_AMOUNT = 10; // ★ 追加: 都市到着時の回復量
+
+        // --- ゲームデータ ---
+        let player = {
+            lv: 1,
+            hp: 50,
+            maxHp: 50,
+            str: 3,
+            def: 3, // ★ txtではDEF0だが、ゲームバランス上3で開始
+            sp: 0,
+            gold: 0,
+            treasures: [],
+            currentCityIndex: 0,
+            hasAncientTreasure: false,
+            exp: 0,
+            nextLevelExp: BASE_EXP_FACTOR * 1 * 1,
+        };
+
+        // 特殊能力データ (txtベース)
+        const specialAbilities = {
+            0: { name: 'なし', effect: null },
+            1: { name: '体力回復20', effect: (p) => { p.hp = Math.min(p.maxHp, p.hp + 20); return "HPが 20 回復した！"; } },
+            2: { name: '小STRUP2', effect: (p) => { p.str = Math.min(MAX_STR, p.str + 2); return "STR が 2 上がった！"; } },
+            3: { name: '小DEFUP2', effect: (p) => { p.def = Math.min(MAX_DEF, p.def + 2); return "DEF が 2 上がった！"; } },
+            4: { name: '体力回復100', effect: (p) => { p.hp = Math.min(p.maxHp, p.hp + 100); return "HPが 100 回復した！"; } },
+            5: { name: '中STRUP5', effect: (p) => { p.str = Math.min(MAX_STR, p.str + 5); return "STR が 5 上がった！"; } },
+            6: { name: '中DEFUP5', effect: (p) => { p.def = Math.min(MAX_DEF, p.def + 5); return "DEF が 5 上がった！"; } },
+            7: { name: '体力回復300', effect: (p) => { p.hp = Math.min(p.maxHp, p.hp + 300); return "HPが 300 回復した！"; } },
+            // 8はテキストにないので削除
+            9: { name: '大STRUP9', effect: (p) => { p.str = Math.min(MAX_STR, p.str + 9); return "STR が 9 上がった！"; } },
+            10: { name: '特大STRUP20', effect: (p) => { p.str = Math.min(MAX_STR, p.str + 20); return "STR が 20 上がった！"; } },
+        };
+
+        // 宝データ (txtベース)
+        const treasureItems = {
+            0: { name: 'なし', usableInBattle: false },
+            1: { name: '金(1-100)', type: 'gold', range: [1, 100], usableInBattle: false }, // ★ 修正: 金額範囲
+            2: { name: '金(20-300)', type: 'gold', range: [20, 300], usableInBattle: false }, // ★ 修正: 金額範囲
+            3: { name: '金(100-500)', type: 'gold', range: [100, 500], usableInBattle: false }, // ★ 修正: 金額範囲
+            4: { name: '草', type: 'heal', value: 50, usableInBattle: true }, // ★ 修正: 回復量、使用可
+            5: { name: 'シート', type: 'defense', duration: 1, usableInBattle: false }, // ★ 修正: 使用不可
+            6: { name: '薬草', type: 'heal', value: 150, usableInBattle: true }, // ★ 修正: 回復量、使用可
+            7: { name: '貴重な薬', type: 'heal', value: 500, usableInBattle: true }, // ★ 修正: 回復量、使用可
+            // 8はテキストにないので削除
+            9: { name: 'バリア', type: 'defense', duration: 3, usableInBattle: false }, // ★ 修正: 使用不可
+            10: { name: '古の秘宝', type: 'keyItem', usableInBattle: false },
+        };
+
+        // 敵データ (txtベース + expYield追加)
+        const smallBosses = [
+            { name: '坐骨', img: '坐骨.png', hp: 8, str: 1, def: 0, sp: 0, treasureType: 1, expYield: 2 },
+            { name: '坐高', img: '坐高.png', hp: 15, str: 2, def: 1, sp: 0, treasureType: 2, expYield: 3 },
+            { name: '坐甲', img: '坐甲.png', hp: 20, str: 3, def: 2, sp: 0, treasureType: 4, expYield: 4 },
+        ];
+        const midBosses = [
+            { name: '青坐骨', img: '青坐骨.png', hp: 30, str: 4, def: 2, sp: 0, treasureType: 3, expYield: 10 }, // ★ 修正: 宝タイプ
+            { name: '藍坐高', img: '藍坐高.png', hp: 50, str: 5, def: 3, sp: 0, treasureType: 6, expYield: 15 }, // ★ 修正: 宝タイプ
+            { name: '碧坐高', img: '碧坐高.png', hp: 80, str: 7, def: 4, sp: 0, treasureType: 7, expYield: 20 }, // ★ 修正: 宝タイプ
+        ];
+        const bigBosses = [
+            { name: '垢坐骨', img: '垢坐骨.png', hp: 100, str: 6, def: 6, sp: 0, treasureType: 5, expYield: 30 }, // ★ 修正: 宝タイプ
+            { name: '淦坐高', img: '淦坐高.png', hp: 130, str: 8, def: 8, sp: 0, treasureType: 9, expYield: 40 }, // ★ 修正: 宝タイプ
+            { name: '閼伽坐高', img: '閼伽坐高.png', hp: 180, str: 10, def: 10, sp: 0, treasureType: 9, isAncientTreasureSource: true, expYield: 50 }, // ★ 修正: 宝タイプ
+        ];
+        const lastBoss = { name: '威爾氏江嘉美', img: '威爾氏江嘉美.png', hp: 400, str: 20, def: 20, sp: 9, treasureType: 10, isLastBoss: true, expYield: 0 };
+
+        // 都市データ (txtベース、座標はhtml既存のものを維持)
+        const cities = [
+            { name: '始村', x: 5, y: 95, 特色: '優しい村人のいる村。ここにくるとHPが全回復', boss: null, conquered: true, isLastIsland: false },
+            { name: '日向', x: 10, y: 85, 特色: '太陽の光が降り注ぐ温暖な地。島には竜がいる？', boss: midBosses[0], conquered: false, isLastIsland: false }, // ★ 修正: ボス割り当て
+            { name: '菟狭', x: 20, y: 75, 特色: '海に面した交易都市。お金を４桁持っていると。。', boss: midBosses[1], conquered: false, isLastIsland: false }, // ★ 修正: ボス割り当て
+            { name: '岡',   x: 30, y: 80, 特色: '豊かな森林に囲まれた木工の町。豪族たちを倒して。', boss: midBosses[1], conquered: false, isLastIsland: false }, // ★ 修正: ボス割り当て
+            { name: '阿岐', x: 40, y: 70, 特色: '肥沃な大地が広がる農業地帯。坐高の誰かを倒すと。。。', boss: midBosses[2], conquered: false, isLastIsland: false }, // ★ 修正: ボス割り当て
+            { name: '吉備', x: 50, y: 75, 特色: '良質な鉄鉱石が採れる鉱山の町。HPは「始村」に行くと全回復。', boss: midBosses[2], conquered: false, isLastIsland: false }, // ★ 修正: ボス割り当て
+            { name: '難波', x: 60, y: 65, 特色: '大陸との交易が盛んな港湾都市。竜は「3」の数字が好きらしい。', boss: midBosses[2], conquered: false, isLastIsland: false }, // ★ 修正: ボス割り当て
+            // --- 島国 ---
+            { name: '海神島', x: 40, y: 20, 特色: '海神を祀る島。ぞろ目の金額以上持っているとチャンス。', boss: bigBosses[0], conquered: false, isLastIsland: false }, // ★ 修正: ボス割り当て
+            { name: '妖精島', x: 60, y: 15, 特色: '色鮮やかな花々が咲き乱れる島。海の波がチャンス', boss: bigBosses[1], conquered: false, isLastIsland: false }, // ★ 修正: ボス割り当て (淦坐高)
+            { name: '龍神島', x: 75, y: 25, 特色: '巨大な龍が棲むと言われる島。', boss: lastBoss, conquered: false, isLastIsland: true }, // ★ 修正: ボス割り当て (ラスボス)
+             // ★ 注意: 閼伽坐高(bigBosses[2])が出る都市がなくなった。妖精島を閼伽坐高に変更する？ -> いったん「淦坐高」のままにする
+        ];
+
+
+        // --- ゲーム状態管理 ---
+        let currentEnemy = null;
+        let isBattle = false;
+        let playerDefenseTurns = 0;
+        let battleTurn = 0;
+        let isGameOver = false;
+        let activeTimeoutId = null;
+        let effectImageTimeout = null; // エフェクト画像用タイマー
+
+        // --- 関数 ---
+
+        // setTimeout ラッパー
+        function setGameTimeout(callback, delay) {
+            clearGameTimeout();
+            activeTimeoutId = setTimeout(() => {
+                activeTimeoutId = null;
+                if (!isGameOver) {
+                    callback();
+                }
+            }, delay);
+            return activeTimeoutId;
+        }
+        function clearGameTimeout() {
+            if (activeTimeoutId) {
+                clearTimeout(activeTimeoutId);
+                activeTimeoutId = null;
+            }
+            clearTimeout(effectImageTimeout); // エフェクト画像タイマーもクリア
+        }
+
+        // プレイヤー状態の更新と表示
+        function updateStatusDisplay() {
+            player.hp = Math.max(0, Math.min(Math.round(player.hp), player.maxHp));
+            player.str = Math.max(1, Math.min(player.str, MAX_STR));
+            player.def = Math.max(0, Math.min(player.def, MAX_DEF));
+            player.gold = Math.min(player.gold, MAX_GOLD);
+            player.lv = Math.max(MIN_LV, Math.min(player.lv, MAX_LV));
+            player.maxHp = Math.max(1, player.maxHp);
+
+            STATUS_LV.textContent = player.lv;
+            STATUS_HP.textContent = player.hp;
+            STATUS_MAXHP.textContent = player.maxHp;
+            STATUS_STR.textContent = player.str;
+            STATUS_DEF.textContent = player.def;
+            STATUS_SP_NAME.textContent = specialAbilities[player.sp]?.name || 'なし';
+            STATUS_GOLD.textContent = player.gold;
+            STATUS_TREASURE_COUNT.textContent = player.treasures.length;
+            STATUS_EXP.textContent = player.exp;
+            STATUS_NEXT_EXP.textContent = player.nextLevelExp;
+
+            STATUS_TREASURE_LIST.innerHTML = '';
+            player.treasures.forEach((item, index) => {
+                const li = document.createElement('li');
+                const itemInfo = treasureItems[item.type];
+                li.textContent = `${item.name}`;
+                if (itemInfo?.usableInBattle) { // ★ 修正: usableInBattle を参照
+                    const useButton = document.createElement('button');
+                    useButton.textContent = '使う';
+                    useButton.onclick = (e) => {
+                         e.stopPropagation();
+                        if (isBattle) {
+                            useTreasureInBattle(index);
+                        } else {
+                            showMessage(`「${item.name}」は戦闘中にのみ使用できます。`);
+                        }
+                    };
+                    li.appendChild(useButton);
+                }
+                STATUS_TREASURE_LIST.appendChild(li);
+            });
+
+            const currentCity = cities[player.currentCityIndex];
+            if (currentCity) {
+                PLAYER_ICON.style.left = `${currentCity.x}%`;
+                PLAYER_ICON.style.top = `${currentCity.y}%`;
+            }
+            updateCityMarkers();
+        }
+
+        // 移動ボタンの表示状態を更新
+        function updateActionButtonsVisibility() {
+            const canGoNext = player.currentCityIndex < cities.length - 1;
+            const canGoPrev = player.currentCityIndex > 0;
+            const currentCity = cities[player.currentCityIndex];
+
+            // ★ 修正: ラスボス島チェックを修正 isLastIsland は最後の島フラグなのでこれを使う
+            const showNext = !isGameOver && !isBattle && canGoNext && (currentCity.conquered || currentCity.name === '始村'); // 始村からはボス倒さなくても次へ行ける
+             NEXT_ACTION_BUTTON.style.display = showNext ? 'inline-block' : 'none';
+
+            const showPrev = !isGameOver && !isBattle && canGoPrev;
+            PREV_ACTION_BUTTON.style.display = showPrev ? 'inline-block' : 'none';
+        }
+
+        // メッセージ表示
+        function showMessage(msg, updateButtons = true) {
+            MESSAGE_TEXT.innerHTML = msg.replace(/\n/g, '<br>');
+            if (GAMEOVER_WINDOW.style.display !== 'none') {
+                 hideGameOverWindow();
+            }
+            CONTROLLER_AREA.style.display = 'block';
+            if (updateButtons) {
+                updateActionButtonsVisibility();
+            } else {
+                NEXT_ACTION_BUTTON.style.display = 'none';
+                PREV_ACTION_BUTTON.style.display = 'none';
+            }
+        }
+
+        // ポップアップ表示
+        function showPopup(contentHtml) {
+            if (isGameOver) return;
+            POPUP_CONTENT.innerHTML = contentHtml;
+            POPUP_WINDOW.style.display = 'flex';
+        }
+        // ポップアップ非表示
+        function hidePopup() {
+            POPUP_WINDOW.style.display = 'none';
+            POPUP_CONTENT.innerHTML = '';
+        }
+
+        // ゲームオーバー処理
+        function showGameOverWindow() {
+            isGameOver = true;
+            clearGameTimeout();
+            hidePopup();
+            CONTROLLER_AREA.style.display = 'none';
+            const oldLv = player.lv;
+            const oldGold = player.gold;
+            const newLv = Math.max(MIN_LV, Math.floor(oldLv / 2)); // ★ 修正: LV 1/2 (最低1)
+            const newGold = Math.floor(oldGold / 2); // ★ 修正: 金 1/2
+            GAMEOVER_MESSAGE.textContent = `なんとしたことか！！\nもう一度チャンスを与える。\nHPは全回復し、LVは ${newLv} に、所持金は ${newGold}G になるが よろしいかな？`;
+            GAMEOVER_WINDOW.style.display = 'flex';
+            const restartButton = document.getElementById('restart-button');
+            if (!restartButton) return;
+            const newRestartButton = restartButton.cloneNode(true);
+            restartButton.parentNode.replaceChild(newRestartButton, restartButton);
+            newRestartButton.onclick = () => {
+                hideGameOverWindow();
+                isGameOver = false;
+                player.lv = newLv;
+                player.gold = newGold;
+                player.currentCityIndex = 0;
+                player.treasures = [];
+                player.hasAncientTreasure = false;
+                player.exp = 0; // 経験値もリセットする
+                player.nextLevelExp = calculateNextLevelExp(player.lv);
+                player.maxHp = 50 + (player.lv - 1) * 10; // ★ 修正: レベルに応じた初期HP (簡易計算)
+                player.hp = player.maxHp; // HP全回復
+                player.str = 3 + Math.floor((player.lv -1) / 2); // ★ 修正: レベルに応じた初期ステータス (簡易計算)
+                player.def = 3 + Math.floor((player.lv -1) / 3); // ★ 修正: レベルに応じた初期ステータス (簡易計算)
+                player.sp = 0;
+                console.log("Player status reset. Restarting game flow...");
+                updateStatusDisplay();
+                arriveAtCity(0);
+                showMessage("もう一度、冒険を始めよう！", true);
+                console.log("Game restarted.");
+            };
+        }
+        function hideGameOverWindow() {
+            GAMEOVER_WINDOW.style.display = 'none';
+        }
+
+        // 宝ゲット処理
+        function gainTreasure(treasureType) {
+            if (player.treasures.length >= MAX_TREASURE) return "宝箱がいっぱい";
+            const itemInfo = treasureItems[treasureType];
+            if (!itemInfo || itemInfo.name === 'なし') return null;
+            if (itemInfo.type === 'gold') {
+                const amount = Math.floor(Math.random() * (itemInfo.range[1] - itemInfo.range[0] + 1)) + itemInfo.range[0];
+                player.gold = Math.min(MAX_GOLD, player.gold + amount);
+                return `${itemInfo.name} (${amount}G)`;
+            } else {
+                const newItem = { name: itemInfo.name, type: treasureType };
+                player.treasures.push(newItem);
+                if (treasureType === 10) {
+                    player.hasAncientTreasure = true;
+                     // ★ TODO: 「竜神.png」表示 -> 「古の宝.png」表示アニメーション (複雑なので省略)
+                    return `なんと！「${itemInfo.name}」`;
+                }
+                return `「${itemInfo.name}」`;
+            }
+        }
+
+        // レベルアップ関連
+        function calculateNextLevelExp(level) {
+            return BASE_EXP_FACTOR * level * level;
+        }
+        function levelUp() {
+            if (isGameOver || player.lv >= MAX_LV) return;
+            let levelUpMessages = [];
+            let gainedLevels = 0;
+            while (player.exp >= player.nextLevelExp && player.lv < MAX_LV) {
+                player.lv++;
+                gainedLevels++;
+                const hpGain = Math.floor(Math.random() * 11) + 10; // 10-20
+                const strGain = Math.floor(Math.random() * 3) + 1; // 1-3
+                const defGain = Math.floor(Math.random() * 2) + 1; // 1-2
+                player.maxHp = Math.min(MAX_HP, player.maxHp + hpGain);
+                player.str = Math.min(MAX_STR, player.str + strGain);
+                player.def = Math.min(MAX_DEF, player.def + defGain);
+                player.hp = player.maxHp; // レベルアップ時 HP全回復
+                player.nextLevelExp = calculateNextLevelExp(player.lv);
+                levelUpMessages.push(`レベルが ${player.lv} に上がった！`);
+                levelUpMessages.push(`最大HP+${hpGain}, STR+${strGain}, DEF+${defGain}`);
+            }
+            if (gainedLevels > 0) {
+                showPopup(`
+                    <h2>レベルアップ！</h2>
+                    <p>${levelUpMessages.join('<br>')}</p>
+                    <button onclick="hidePopup()">閉じる</button>
+                `);
+                updateStatusDisplay();
+            }
+        }
+
+        // エフェクト画像表示
+        function showEffectImage(imageUrl, target) {
+            clearTimeout(effectImageTimeout); // 既存のエフェクトタイマーをクリア
+            const existingEffect = document.querySelector('.effect-image-enemy, .effect-image-player');
+            if (existingEffect) existingEffect.remove(); // 既存のエフェクト画像を削除
+
+            if (!POPUP_WINDOW || POPUP_WINDOW.style.display === 'none') return; // ポップアップが表示されてないなら何もしない
+
+            const effectImg = document.createElement('img');
+            effectImg.src = imageUrl;
+            if (target === 'enemy') {
+                effectImg.className = 'effect-image-enemy';
+            } else if (target === 'player') {
+                effectImg.className = 'effect-image-player';
+            } else {
+                return; // 不明なターゲット
+            }
+            POPUP_CONTENT.appendChild(effectImg);
+
+            effectImageTimeout = setTimeout(() => {
+                 if (effectImg && effectImg.parentNode) {
+                    effectImg.remove();
+                }
+            }, 2000); // 2秒後に消す
+        }
+
+
+        // --- 戦闘処理 ---
+        function startBattle(enemyData) {
+            if (isGameOver || isBattle) return;
+            isBattle = true;
+            currentEnemy = { ...enemyData, currentHp: enemyData.hp };
+            playerDefenseTurns = 0;
+            battleTurn = 1;
+            CONTROLLER_AREA.style.display = 'none';
+            let battleHtml = `
+                <h2>戦闘開始！</h2>
+                <div id="battle-info">
+                    <div id="battle-player-status">
+                        <h3>プレイヤー</h3>
+                        <img src="player.png" alt="プレイヤー" class="player-battle-image">
+                        <p>HP: <span id="battle-player-hp">${player.hp}</span> / ${player.maxHp}</p>
+                        <p>STR: ${player.str} / DEF: ${player.def}</p>
+                        <p id="player-battle-effect"></p>
+                    </div>
+                    <div id="battle-enemy-status">
+                         <h3>${currentEnemy.name}</h3>
+                         <img src="${currentEnemy.img || 'enemy_placeholder.png'}" alt="${currentEnemy.name}" class="enemy-image">
+                         <p>HP: <span id="battle-enemy-hp">${currentEnemy.currentHp}</span> / ${currentEnemy.hp}</p>
+                         <p>STR: ${currentEnemy.str} / DEF: ${currentEnemy.def}</p>
+                         <p id="enemy-battle-effect"></p>
+                    </div>
+                </div>
+                <div id="battle-log"></div>
+                <div id="battle-actions">
+                    <button onclick="battleAction('attack')">たたかう</button>
+                    <button onclick="battleAction('special')" ${player.sp === 0 || !specialAbilities[player.sp]?.effect ? 'disabled' : ''}>特殊(${specialAbilities[player.sp]?.name || 'なし'})</button>
+                    <button onclick="showBattleInventory()">宝箱</button>
+                    <button onclick="battleAction('flee')">にげる</button>
+                </div>
+                <div id="battle-inventory" style="display: none;">
+                    <h4>どのアイテムを使う？</h4>
+                    <button onclick="hideBattleInventory()">もどる</button>
+                </div>
+            `;
+            showPopup(battleHtml);
+            addBattleLog(`ターン ${battleTurn}: ${currentEnemy.name} が現れた！`);
+            addBattleLog("どうする？");
+            updateBattleStatusDisplay();
+        }
+
+        function updateBattleStatusDisplay() {
+            if (POPUP_WINDOW.style.display === 'none' || !isBattle) return;
+            const battlePlayerHp = document.getElementById('battle-player-hp');
+            const battleEnemyHp = document.getElementById('battle-enemy-hp');
+            const playerEffectElement = document.getElementById('player-battle-effect');
+            if (battlePlayerHp) battlePlayerHp.textContent = player.hp;
+            if (battleEnemyHp) battleEnemyHp.textContent = Math.max(0, currentEnemy.currentHp);
+            let playerEffectText = '';
+            if (playerDefenseTurns > 0) {
+                playerEffectText = `防御中 (あと${playerDefenseTurns}ターン)`;
+            }
+            if (playerEffectElement) playerEffectElement.textContent = playerEffectText;
+
+            // 宝箱の中身更新
+            const invDiv = document.getElementById('battle-inventory');
+            if (invDiv) {
+                // 既存のアイテムボタンとメッセージをクリア（「もどる」ボタン以外）
+                Array.from(invDiv.children).forEach(child => {
+                    if (child.tagName === 'BUTTON' && child.textContent !== 'もどる') child.remove();
+                    else if (child.tagName === 'P') child.remove();
+                });
+                let usableItemExists = false;
+                const backButton = invDiv.querySelector('button'); // 「もどる」ボタン取得
+                player.treasures.forEach((item, index) => {
+                    const itemInfo = treasureItems[item.type];
+                    // ★ 修正: usableInBattle を参照
+                    if (itemInfo && itemInfo.usableInBattle) {
+                         usableItemExists = true;
+                        const itemButton = document.createElement('button');
+                        itemButton.textContent = `${item.name}`;
+                        itemButton.onclick = () => useTreasureInBattle(index);
+                        // 「もどる」ボタンの前に挿入
+                        if (backButton) invDiv.insertBefore(itemButton, backButton);
+                        else invDiv.appendChild(itemButton); // もどるボタンがない場合(念のため)
+                    }
+                });
+                 // 使用可能なアイテムがない場合のメッセージ
+                 if (!usableItemExists) {
+                     const noItemMsg = document.createElement('p');
+                     noItemMsg.textContent = '戦闘中に使えるアイテムがない。';
+                     if (backButton) invDiv.insertBefore(noItemMsg, backButton);
+                     else invDiv.appendChild(noItemMsg);
+                 }
+            }
+        }
+        function addBattleLog(message) {
+            const logDiv = document.getElementById("battle-log");
+            if (logDiv && POPUP_WINDOW.style.display !== 'none' && isBattle) {
+                logDiv.innerHTML += `<p>${message}</p>`;
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }
+        }
+        function showBattleInventory() {
+            const invDiv = document.getElementById('battle-inventory');
+            const actDiv = document.getElementById('battle-actions');
+            if (invDiv) { updateBattleStatusDisplay(); invDiv.style.display = 'block'; } // 表示前に中身を更新
+            if (actDiv) actDiv.style.display = 'none';
+        }
+        function hideBattleInventory() {
+            const invDiv = document.getElementById('battle-inventory');
+            const actDiv = document.getElementById('battle-actions');
+            if (invDiv) invDiv.style.display = 'none';
+            if (actDiv) actDiv.style.display = 'block';
+        }
+        function useTreasureInBattle(itemIndex) {
+            if (itemIndex < 0 || itemIndex >= player.treasures.length || !isBattle) return;
+            const item = player.treasures[itemIndex];
+            const itemInfo = treasureItems[item.type];
+            // ★ 修正: usableInBattle を参照
+            if (!itemInfo || !itemInfo.usableInBattle) {
+                addBattleLog("このアイテムは戦闘中に使えない！");
+                hideBattleInventory(); return;
+            }
+            addBattleLog(`プレイヤーは「${item.name}」を使った！`);
+            let turnEnded = false;
+            switch (itemInfo.type) {
+                case 'heal':
+                    const healAmount = itemInfo.value;
+                    const actualHeal = Math.min(healAmount, player.maxHp - player.hp);
+                    if (actualHeal > 0) { player.hp += actualHeal; addBattleLog(`HPが ${actualHeal} 回復した！`); turnEnded = true; }
+                    else { addBattleLog(`しかし、HPは満タンだ！`); }
+                    break;
+                case 'defense': // txt अनुसार, シートとバリアは戦闘中使えないはずだが、コードが残っているため、効果は残す
+                    playerDefenseTurns = Math.max(playerDefenseTurns, itemInfo.duration);
+                    addBattleLog(`プレイヤーは ${itemInfo.duration} ターン守られる！`);
+                    turnEnded = true;
+                    break;
+            }
+            if (turnEnded) {
+                player.treasures.splice(itemIndex, 1);
+                hideBattleInventory();
+                updateStatusDisplay(); // メインのステータス表示も更新
+                updateBattleStatusDisplay(); // バトル中の表示も更新
+                endPlayerTurn(); // ターン終了処理へ
+            } else {
+                 hideBattleInventory(); // 効果がなかった場合もインベントリは閉じる
+            }
+        }
+
+        function battleAction(action) {
+            if (!isBattle || isGameOver) return;
+            const actionButtons = document.querySelectorAll('#battle-actions button');
+            actionButtons.forEach(button => button.disabled = true); // 行動中はボタン無効化
+            addBattleLog(`--- ターン ${battleTurn} ---`);
+            let playerActed = false;
+            let playerAttackMessage = "プレイヤーの攻撃！";
+            let tempStrBoost = 0; // 一時的なSTR上昇値
+
+            switch (action) {
+                case 'attack':
+                    playerActed = true;
+                    let damageToEnemy = 0;
+                    let isGodStrike = false; // 神の一撃フラグ (txtにはないが維持)
+                    let isPowerUp = false; // 漲る力フラグ
+
+                    // 漲る力チェック (神の一撃より優先度は低いとする)
+                    if (Math.random() < PLAYER_POWER_UP_CHANCE) {
+                        isPowerUp = true;
+                        tempStrBoost = Math.floor(Math.random() * (10 - 3 + 1)) + 3; // 3-10
+                        playerAttackMessage = `漲る力！ プレイヤーの攻撃！ (STR+${tempStrBoost})`;
+                        addBattleLog(playerAttackMessage);
+                        showEffectImage('b1.png', 'enemy'); // ★ 修正: エフェクト表示
+                    }
+
+                    // 神の一撃チェック (txtにはないが維持)
+                    if (!isPowerUp && Math.random() < GOD_STRIKE_CHANCE) {
+                        isGodStrike = true;
+                        // 神の一撃ダメージ計算 (防御無視)
+                        const godStrikeDamage = Math.max(1, (player.str + tempStrBoost) * GOD_STRIKE_MULTIPLIER);
+                        damageToEnemy = Math.round(godStrikeDamage);
+                        playerAttackMessage = "神の一撃！！";
+                        addBattleLog(`✨ ${playerAttackMessage} ✨`);
+                    } else {
+                        // 通常攻撃ダメージ計算 (漲る力含む)
+                        let playerAttackPower = player.str + tempStrBoost;
+                        damageToEnemy = Math.max(1, playerAttackPower - (currentEnemy.def || 0)); // ★ 修正: 最低1ダメージ保証
+                        damageToEnemy = Math.round(damageToEnemy);
+                        if (!isPowerUp) addBattleLog(playerAttackMessage); // 通常メッセージ
+                    }
+
+                    currentEnemy.currentHp = Math.max(0, currentEnemy.currentHp - damageToEnemy);
+                    addBattleLog(`${currentEnemy.name} に ${damageToEnemy} のダメージ！`);
+                    // ★ TODO: 敵画像揺らす処理 (複雑なので省略)
+                    break;
+                case 'special':
+                    const ability = specialAbilities[player.sp];
+                     if (ability && ability.effect) {
+                         playerActed = true;
+                         addBattleLog(`プレイヤーは「${ability.name}」を使った！`);
+                         const effectMessage = ability.effect(player);
+                         if (effectMessage) addBattleLog(effectMessage);
+                         updateStatusDisplay(); updateBattleStatusDisplay(); // 表示更新
+                     } else {
+                         addBattleLog("しかし、何も起こらなかった！");
+                         actionButtons.forEach(button => button.disabled = false); // 行動しなかったのでボタン有効化
+                     }
+                    break;
+                case 'flee':
+                    // ★ 修正: ラスボス以外は逃げられる
+                    if (currentEnemy.isLastBoss) {
+                         addBattleLog("強敵からは逃げられない！");
+                         actionButtons.forEach(button => button.disabled = false); // ボタン有効化
+                    } else {
+                        playerActed = true;
+                        player.hp = Math.max(1, Math.floor(player.hp / 2)); // ★ 修正: HP半分 (最低1)
+                        addBattleLog("手傷を負ったが逃げ出せた...");
+                        isBattle = false; clearGameTimeout(); hidePopup();
+                        updateStatusDisplay(); showMessage("戦闘から逃げ出した...", true);
+                        return; // 戦闘終了なので即 return
+                    }
+                    break;
+                default: addBattleLog("どうする？"); actionButtons.forEach(button => button.disabled = false); break; // 不明なアクション
+            }
+            updateBattleStatusDisplay(); // HPなどの表示更新
+            // 敵のHPチェック
+            if (currentEnemy.currentHp <= 0) { setGameTimeout(winBattle, 500); return; }
+            // プレイヤーが行動した場合、敵ターンへ
+            if (playerActed) { endPlayerTurn(); }
+        }
+
+        function endPlayerTurn() {
+            if (!isBattle || isGameOver) return;
+            // 防御ターン経過
+            if (playerDefenseTurns > 0) {
+                playerDefenseTurns--;
+                if (playerDefenseTurns === 0) { addBattleLog("プレイヤーの防御効果が切れた。"); updateBattleStatusDisplay(); }
+            }
+            addBattleLog("--- 敵のターン ---");
+            setGameTimeout(enemyTurn, 800); // 少し待ってから敵の行動
+        }
+
+        function enemyTurn() {
+             if (!isBattle || isGameOver || player.hp <= 0) return;
+            let enemyAttackMessage = `${currentEnemy.name} の攻撃！`;
+            let enemyAttackPower = currentEnemy.str || 0;
+            let tempEnemyStrBoost = 0;
+
+            // 豪族の力チェック
+            if (Math.random() < ENEMY_POWER_UP_CHANCE) {
+                tempEnemyStrBoost = Math.floor(Math.random() * (20 - 5 + 1)) + 5; // ★ 修正: 5-20
+                enemyAttackPower += tempEnemyStrBoost;
+                enemyAttackMessage = `豪族の力！ ${currentEnemy.name} の攻撃！ (STR+${tempEnemyStrBoost})`;
+                 showEffectImage('Ko.png', 'player'); // ★ 修正: エフェクト表示
+            }
+            addBattleLog(enemyAttackMessage);
+
+            let damageToPlayer = 0;
+            if (playerDefenseTurns > 0) { addBattleLog("プレイヤーは攻撃を防いだ！"); }
+            else {
+                damageToPlayer = Math.max(1, enemyAttackPower - player.def); // ★ 修正: 最低1ダメージ保証
+                damageToPlayer = Math.round(damageToPlayer);
+                addBattleLog(`プレイヤーは ${damageToPlayer} のダメージを受けた！`);
+                // ★ TODO: プレイヤー画像揺らす処理 (複雑なので省略)
+            }
+            player.hp -= damageToPlayer;
+            updateStatusDisplay(); updateBattleStatusDisplay(); // 表示更新
+
+            // プレイヤーHPチェック
+            if (player.hp <= 0) { setGameTimeout(loseBattle, 500); return; }
+
+            // 次のプレイヤーターンへ
+            battleTurn++;
+            addBattleLog(`--- ターン ${battleTurn}: どうする？ ---`);
+            // ボタンを再度有効化
+            const actionButtons = document.querySelectorAll('#battle-actions button');
+            actionButtons.forEach(button => button.disabled = false);
+            const invBackButton = document.querySelector('#battle-inventory button'); // 宝箱の「もどる」ボタンも有効化
+            if (invBackButton) invBackButton.disabled = false;
+        }
+
+        function winBattle() {
+            if (!isBattle || isGameOver) return;
+            isBattle = false; clearGameTimeout(); hidePopup();
+            let winMessages = [];
+            winMessages.push(`${currentEnemy.name} を倒した！`);
+
+            // 経験値獲得
+            const expGained = currentEnemy.expYield || 0;
+            if (expGained > 0 && player.lv < MAX_LV) {
+                player.exp += expGained;
+                winMessages.push(`${expGained} の経験値を獲得！`);
+            }
+
+            // ゴールド獲得 (txtにはないが、敵HPベースで残しておく)
+            const goldGained = Math.floor((currentEnemy.hp || 10) / 5);
+            if (goldGained > 0) { player.gold = Math.min(MAX_GOLD, player.gold + goldGained); winMessages.push(`${goldGained}G を手に入れた！`); }
+
+            // 宝ドロップ
+            let droppedItemMsg = null;
+            // ★ 修正: 宝ドロップ率計算 (20% - 2% * 宝タイプ)
+            const treasureDropChance = Math.max(0.01, 0.20 - 0.02 * (currentEnemy.treasureType || 0));
+            if (Math.random() < treasureDropChance) { droppedItemMsg = gainTreasure(currentEnemy.treasureType); }
+
+            // 古の宝ドロップチェック
+            if (currentEnemy.isAncientTreasureSource && !player.hasAncientTreasure) {
+                winMessages.push(`閼伽坐高は何かを落とそうとしている...`);
+                 // ★ 修正: 金額条件チェック
+                if (player.gold >= ANCIENT_TREASURE_GOLD_REQ) {
+                    winMessages.push(`(所持金 ${player.gold}G / ${ANCIENT_TREASURE_GOLD_REQ}G 以上)`);
+                    if (Math.random() < ANCIENT_TREASURE_DROP_CHANCE) { droppedItemMsg = gainTreasure(10); } // タイプ10 = 古の秘宝
+                    else { winMessages.push(`しかし、古の宝は手に入らなかった... (確率 ${ANCIENT_TREASURE_DROP_CHANCE * 100}%)`); }
+                } else { winMessages.push(`しかし、所持金が足りないようだ... (${player.gold}G / ${ANCIENT_TREASURE_GOLD_REQ}G)`); }
+            }
+
+            // ドロップ結果メッセージ
+            if (droppedItemMsg) {
+                if (droppedItemMsg === "宝箱がいっぱい") { winMessages.push(`しかし宝箱がいっぱいでアイテムは手に入らなかった！`); }
+                else { winMessages.push(`さらに ${droppedItemMsg} 手に入れた！`); }
+            }
+
+            // 都市征服チェック
+            const cityIndex = cities.findIndex(c => c.boss && c.boss.name === currentEnemy.name && !c.conquered);
+            if (cityIndex > -1) { cities[cityIndex].conquered = true; winMessages.push(`${cities[cityIndex].name} を征服した！`); }
+
+            // ラスボス撃破 -> ゲームクリア
+            if (currentEnemy.isLastBoss) { gameClear(); return; }
+
+            updateStatusDisplay(); // 先にステータス表示を更新
+
+            // レベルアップチェック
+            if (player.exp >= player.nextLevelExp && player.lv < MAX_LV) {
+                showMessage(winMessages.join("<br>"), true); // メッセージ表示してボタンも更新
+                setGameTimeout(levelUp, 800); // 少し待ってレベルアップ処理
+            } else {
+                showMessage(winMessages.join("<br>"), true); // メッセージ表示してボタンも更新
+            }
+        }
+        function loseBattle() {
+            if (!isBattle || isGameOver) return;
+            isBattle = false; clearGameTimeout(); hidePopup(); showGameOverWindow();
+        }
+
+        // 都市到着処理
+        function arriveAtCity(cityIndex) {
+            if (isGameOver || isBattle) return;
+            clearGameTimeout();
+            player.currentCityIndex = cityIndex;
+            const city = cities[cityIndex];
+            if (!city) return;
+
+            let arrivalMessages = [];
+            // HP回復処理
+            if (city.name === '始村') { // 始村は全回復
+                 player.hp = player.maxHp;
+                 arrivalMessages.push(`始まりの村「${city.name}」に到着した。\nHPが全回復した！`);
+             } else { // 他の都市は10回復
+                 arrivalMessages.push(`都市「${city.name}」に到着した。`);
+                 const healAmount = Math.min(CITY_HEAL_AMOUNT, player.maxHp - player.hp); // 回復上限あり
+                 if (healAmount > 0) {
+                     player.hp += healAmount;
+                     arrivalMessages.push(`HPが ${healAmount} 回復した！`);
+                 }
+            }
+            // 特色表示
+            if(city.特色) arrivalMessages.push(`(${city.特色})`);
+
+            updateStatusDisplay(); // 回復後のステータスを表示
+
+            let bossToFight = null;
+            // ボス出現判定
+            if (city.isLastIsland) { // 最後の島か？
+                if (player.hasAncientTreasure) { // 古の宝を持っているか？
+                    arrivalMessages.push(`「古の秘宝」の力で道が開かれる...！\n最終ボス「${city.boss.name}」が現れた！`);
+                    bossToFight = city.boss;
+                } else { // 古の宝がない場合
+                    // ★ 修正: 中ボスのどれかランダム
+                    const randomMidBoss = midBosses[Math.floor(Math.random() * midBosses.length)];
+                    arrivalMessages.push(`「古の宝」がないため奥へは進めない...\n代わりに「${randomidBoss.name}」が現れた！`);
+                    bossToFight = randomMidBoss;
+                }
+            } else if (city.boss && !city.conquered) { // 通常都市で未征服か？
+                arrivalMessages.push(`この都市のボス「${city.boss.name}」が現れた！`);
+                bossToFight = city.boss;
+            }
+
+            // ボス戦開始 or 休息メッセージ
+            if (bossToFight) {
+                showMessage(arrivalMessages.join("<br>"), false); // ボタン非表示でメッセージ表示
+                setGameTimeout(() => { if (!isGameOver && !isBattle) startBattle(bossToFight); }, 1500); // 少し待って戦闘開始
+            } else {
+                if(city.name !== '始村') arrivalMessages.push("休息した。"); // 始村以外なら休息メッセージ追加
+                showMessage(arrivalMessages.join("<br>"), true); // ボタン表示ありでメッセージ表示
+            }
+        }
+
+        // 次の都市へ移動
+        NEXT_ACTION_BUTTON.onclick = () => {
+            if (isBattle || isGameOver) return;
+            const currentCityIndex = player.currentCityIndex;
+            const currentCity = cities[currentCityIndex];
+
+            // ★ 修正: ボス未討伐チェック (始村とラスボス島は除く)
+            if (currentCity.boss && !currentCity.conquered && currentCity.name !== '始村' && !currentCity.isLastIsland) {
+                 showMessage(`ボス「${currentCity.boss.name}」を倒さないと先へは進めない！`, true); return;
+             }
+
+            if (currentCityIndex < cities.length - 1) {
+                const nextCityIndex = currentCityIndex + 1;
+                // 道中小ボス遭遇チェック
+                if (Math.random() < SMALL_BOSS_ENCOUNTER_CHANCE) {
+                    const randomSmallBoss = smallBosses[Math.floor(Math.random() * smallBosses.length)];
+                    showMessage(`移動中に「${randomSmallBoss.name}」に遭遇した！`, false);
+                    setGameTimeout(() => { if (!isGameOver && !isBattle) startBattle(randomSmallBoss); }, 1000);
+                } else {
+                    // ★ TODO: 移動アニメーション（3歩）は複雑なので省略
+                    showMessage(`${cities[nextCityIndex].name} へ向かっている...`, false);
+                    setGameTimeout(() => { arriveAtCity(nextCityIndex); }, 700);
+                }
+            } else {
+                showMessage("これ以上進む道はないようだ。", true);
+            }
+        };
+        // 前の都市へ移動
+        PREV_ACTION_BUTTON.onclick = () => {
+            if (isBattle || isGameOver || player.currentCityIndex <= 0) return;
+            const prevCityIndex = player.currentCityIndex - 1;
+            // ★ TODO: 移動アニメーション（3歩）は複雑なので省略
+            showMessage(`${cities[prevCityIndex].name} へ戻っている...`, false);
+            setGameTimeout(() => { arriveAtCity(prevCityIndex); }, 700);
+        };
+
+        // マップマーカー処理
+        function setupMapMarkers() {
+            MAP_AREA.querySelectorAll('.city-marker').forEach(marker => marker.remove());
+            cities.forEach((city, index) => {
+                const marker = document.createElement('div');
+                marker.classList.add('city-marker');
+                marker.textContent = index; // 番号表示
+                marker.title = `${index}: ${city.name}\n${city.特色 || ''}`; // ツールチップ
+                marker.style.left = `${city.x}%`; marker.style.top = `${city.y}%`;
+                MAP_AREA.appendChild(marker);
+            });
+            updateCityMarkers();
+        }
+        function updateCityMarkers() {
+             MAP_AREA.querySelectorAll('.city-marker').forEach((marker, index) => {
+                marker.classList.remove('current', 'conquered');
+                if (cities[index]) {
+                    if (index === player.currentCityIndex) marker.classList.add('current'); // 現在地は赤
+                    else if (cities[index].conquered) marker.classList.add('conquered'); // 征服済みはグレー
+                }
+            });
+        }
+        // ゲームクリア処理
+        function gameClear() {
+            isGameOver = true; isBattle = false; clearGameTimeout(); hidePopup();
+            const finalBossName = cities.find(c => c.isLastIsland)?.boss?.name || "最後の敵";
+            showMessage(`**祝！** ラスボス「${finalBossName}」を倒し、世界に平和が訪れた！<br>--- GAME CLEAR ---`, false); // ボタン非表示
+            CONTROLLER_AREA.style.display = 'block'; // コントローラーエリアは表示
+            NEXT_ACTION_BUTTON.style.display = 'none'; // 移動ボタンは非表示
+            PREV_ACTION_BUTTON.style.display = 'none';
+        }
+        // ゲーム初期化処理
+        function initializeGame() {
+            isGameOver = false; isBattle = false; clearGameTimeout(); hideGameOverWindow(); hidePopup();
+            // プレイヤー初期化
+            player = {
+                lv: 1, hp: 50, maxHp: 50, str: 3, def: 3, sp: 0, gold: 0,
+                treasures: [], currentCityIndex: 0, hasAncientTreasure: false,
+                exp: 0, nextLevelExp: calculateNextLevelExp(1),
+            };
+            // 都市の状態初期化 (始村だけ征服済み)
+            cities.forEach((city, index) => { city.conquered = (index === 0); });
+            // UI初期化
+            setupMapMarkers(); updateStatusDisplay(); arriveAtCity(0); // 開始都市へ
+            showMessage("運命の冒険が始まる！", true);
+        }
+
+        // --- ゲーム開始 ---
+        initializeGame();
+
+    </script>
+</body>
+</html>
